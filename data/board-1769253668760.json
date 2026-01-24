@@ -1,0 +1,24 @@
+{
+  "columns": {
+    "col-1": {
+      "id": "col-1",
+      "title": "To Do",
+      "items": []
+    },
+    "col-2": {
+      "id": "col-2",
+      "title": "Doing",
+      "items": []
+    },
+    "col-3": {
+      "id": "col-3",
+      "title": "Done",
+      "items": []
+    }
+  },
+  "columnOrder": [
+    "col-1",
+    "col-2",
+    "col-3"
+  ]
+}
