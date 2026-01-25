@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { Plus, X, AlignLeft, Trash2, Search, Calendar, Tag, Cloud, CloudOff, Loader2, LogOut, User } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
+import quickboardIcon from "./assets/quickboard-icon.png";
 
 // --- LOGIN COMPONENT ---
 const AuthScreen = ({ onLogin }) => {
@@ -304,13 +305,20 @@ const App = () => {
   if (!isMounted) return null;
 
   return (
-    <div className="h-[100dvh] flex flex-col bg-[#0079bf] font-sans selection:bg-indigo-300 selection:text-indigo-900" 
+    <div className="h-dvh flex flex-col bg-[#0079bf] font-sans selection:bg-indigo-300 selection:text-indigo-900" 
       style={{ backgroundImage: 'url("https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=2000&q=80")', backgroundSize: 'cover', backgroundPosition: 'center', }}
     >
       <nav className="bg-black/20 backdrop-blur-md border-b border-white/10 shrink-0 z-20">
         <div className="max-w-full px-4 py-3 flex flex-col md:flex-row md:items-center gap-3 md:justify-between">
           <div className="flex items-center justify-between">
-            <h1 className="text-white font-bold text-lg flex items-center gap-2 drop-shadow-md"><AlignLeft className="w-6 h-6"/> <span>My Board</span></h1>
+            <h1 className="text-white font-bold text-lg flex items-center gap-2 drop-shadow-md">
+              <img
+                src={quickboardIcon}
+                alt="QuickBoard"
+                className="w-6 h-6"
+              />
+              <span>QuickBoard</span>
+            </h1>
             
             {/* Mobile Header Icons */}
             <div className="md:hidden flex items-center gap-3">
