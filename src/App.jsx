@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { Plus, X, AlignLeft, Trash2, Search, Calendar, Tag, Cloud, CloudOff, Loader2, LogOut, User } from 'lucide-react';
+import { Plus, X, AlignLeft, Trash2, Search, Calendar, Tag, Cloud, CloudOff, Loader2, LogOut, User, Edit2, Check } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import quickboardIcon from "./assets/quickboard-icon.png";
 
@@ -122,9 +122,12 @@ const App = () => {
   const [addingCardToCol, setAddingCardToCol] = useState(null);
   const [newCardTitle, setNewCardTitle] = useState("");
   const [editingItem, setEditingItem] = useState(null);
+  const [editingListId, setEditingListId] = useState(null);
+  const [editingListTitle, setEditingListTitle] = useState("");
 
   const listInputRef = useRef(null);
   const cardInputRef = useRef(null);
+  const listTitleInputRef = useRef(null);
 
   // Mount check
   useEffect(() => { setIsMounted(true); }, []);
@@ -197,14 +200,18 @@ const App = () => {
   useEffect(() => {
     if (isAddingList && listInputRef.current) listInputRef.current.focus();
     if (addingCardToCol && cardInputRef.current) cardInputRef.current.focus();
-  }, [isAddingList, addingCardToCol]);
+    if (editingListId && listTitleInputRef.current) {
+      listTitleInputRef.current.focus();
+      listTitleInputRef.current.select();
+    }
+  }, [isAddingList, addingCardToCol, editingListId]);
 
   // If no token, show Login Screen
   if (!token) {
     return <AuthScreen onLogin={handleLogin} />;
   }
 
-  // --- Logic Methods (Same as before) ---
+  // --- Logic Methods ---
   const onDragEnd = (result) => {
     const { destination, source, type } = result;
     if (searchQuery || !destination) return;
@@ -258,6 +265,27 @@ const App = () => {
     delete newColumns[columnId];
     const newOrder = boardData.columnOrder.filter(id => id !== columnId);
     setBoardData(prev => ({ ...prev, columns: newColumns, columnOrder: newOrder }));
+  };
+
+  const startEditingListTitle = (columnId, currentTitle) => {
+    setEditingListId(columnId);
+    setEditingListTitle(currentTitle);
+  };
+
+  const saveListTitle = (columnId) => {
+    if (!editingListTitle.trim()) {
+      setEditingListId(null);
+      return;
+    }
+    setBoardData(prev => ({
+      ...prev,
+      columns: {
+        ...prev.columns,
+        [columnId]: { ...prev.columns[columnId], title: editingListTitle }
+      }
+    }));
+    setEditingListId(null);
+    setEditingListTitle("");
   };
 
   const handleAddCard = (columnId) => {
@@ -351,7 +379,6 @@ const App = () => {
         </div>
       </nav>
 
-      {/* --- REST OF THE BOARD IS IDENTICAL TO PREVIOUS VERSION --- */}
       <div className="flex-1 overflow-x-auto overflow-y-hidden snap-x snap-mandatory">
         <div className="h-full flex items-start px-4 py-4 gap-4">
           <DragDropContext onDragEnd={onDragEnd}>
@@ -371,17 +398,54 @@ const App = () => {
                             className={`snap-center shrink-0 w-[calc(100vw-2rem)] md:w-80 flex flex-col max-h-full ${snapshot.isDragging ? 'z-50' : ''}`}
                             style={{ ...provided.draggableProps.style }} 
                           >
-                            <div className={`bg-[#f1f2f4] rounded-xl shadow-xl border border-white/20 flex flex-col max-h-full ${snapshot.isDragging ? 'shadow-2xl ring-4 ring-indigo-500/30 rotate-2' : ''}`}>
-                              <div {...provided.dragHandleProps} className="p-3 pl-4 pr-2 flex justify-between items-center cursor-grab active:cursor-grabbing border-b border-gray-200/50 group">
-                                <div className="flex items-center gap-2"><h2 className="font-bold text-gray-800 text-sm">{column.title}</h2></div>
-                                <div className="flex items-center gap-1">
-                                  <span className="text-xs text-gray-500 font-bold bg-gray-200/80 px-2 py-0.5 rounded-full min-w-[1.5rem] text-center">{filteredItems.length}</span>
+                            <div className={`bg-[#f1f2f4] overflow-y-auto rounded-xl shadow-xl border border-white/20 flex flex-col max-h-full ${snapshot.isDragging ? 'shadow-2xl ring-4 ring-indigo-500/30 rotate-2' : ''}`}>
+                              <div {...provided.dragHandleProps} className="p-3 pl-4 pr-2 flex justify-between items-center cursor-grab active:cursor-grabbing border-b border-gray-200/50 group shrink-0">
+                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                  {editingListId === column.id ? (
+                                    <input
+                                      ref={listTitleInputRef}
+                                      type="text"
+                                      value={editingListTitle}
+                                      onChange={(e) => setEditingListTitle(e.target.value)}
+                                      onBlur={() => saveListTitle(column.id)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') saveListTitle(column.id);
+                                        if (e.key === 'Escape') setEditingListId(null);
+                                      }}
+                                      className="font-bold text-gray-800 text-sm bg-white border-2 border-indigo-500 rounded px-2 py-1 outline-none flex-1 min-w-0"
+                                      onClick={(e) => e.stopPropagation()}
+                                    />
+                                  ) : (
+                                    <>
+                                      <h2 className="font-bold text-gray-800 text-sm truncate">{column.title}</h2>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          startEditingListTitle(column.id, column.title);
+                                        }}
+                                        className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-gray-700 hover:bg-gray-200 rounded transition-all"
+                                      >
+                                        <Edit2 className="w-3 h-3" />
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <span className="text-xs text-gray-500 font-bold bg-gray-200/80 px-2 py-0.5 rounded-full min-w-6 text-center">{filteredItems.length}</span>
                                   <button onClick={() => deleteList(column.id)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"><Trash2 className="w-4 h-4" /></button>
                                 </div>
                               </div>
                               <Droppable droppableId={column.id} type="card" isDropDisabled={!!searchQuery}>
                                 {(provided, snapshot) => (
-                                  <div {...provided.droppableProps} ref={provided.innerRef} className={`flex-1 overflow-y-auto px-2 py-2 min-h-[100px] transition-colors ${snapshot.isDraggingOver ? 'bg-indigo-50/50' : ''}`}>
+                                  <div 
+                                    {...provided.droppableProps} 
+                                    ref={provided.innerRef} 
+                                    className={`flex-1 overflow-y-auto px-2 py-2 min-h-25 transition-colors scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-transparent hover:scrollbar-thumb-gray-500 ${snapshot.isDraggingOver ? 'bg-indigo-50/50' : ''}`}
+                                    style={{
+                                      scrollbarWidth: 'thin',
+                                      scrollbarColor: 'rgb(156 163 175) transparent'
+                                    }}
+                                  >
                                     {filteredItems.map((item, index) => (
                                       <Draggable key={item.id} draggableId={item.id} index={index} isDragDisabled={!!searchQuery}>
                                         {(provided, snapshot) => (
@@ -408,7 +472,7 @@ const App = () => {
                                 )}
                               </Droppable>
                               {!searchQuery && (
-                                <div className="p-2 border-t border-gray-200/50">
+                                <div className="p-2 border-t border-gray-200/50 shrink-0">
                                   {addingCardToCol === column.id ? (
                                     <div className="bg-white p-2 rounded-lg shadow-sm border border-indigo-500 animate-in fade-in zoom-in duration-100">
                                       <textarea ref={cardInputRef} placeholder="Type a title..." className="w-full text-sm resize-none outline-none text-gray-800 placeholder-gray-400 block mb-2 min-h-[60px]" value={newCardTitle} onChange={(e) => setNewCardTitle(e.target.value)} onKeyDown={(e) => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAddCard(column.id); }}} />
@@ -467,7 +531,7 @@ const App = () => {
               </div>
               <div className="h-full flex flex-col">
                 <label className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-wider mb-3"><AlignLeft className="w-3 h-3"/> Description</label>
-                <textarea className="w-full flex-1 min-h-[200px] bg-gray-50 border border-gray-200 rounded-lg p-4 text-base text-gray-700 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none resize-none leading-relaxed" placeholder="Add more detailed notes here..." value={editingItem.content} onChange={(e) => setEditingItem({...editingItem, content: e.target.value})} />
+                <textarea className="w-full flex-1 min-h-50 bg-gray-50 border border-gray-200 rounded-lg p-4 text-base text-gray-700 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none resize-none leading-relaxed" placeholder="Add more detailed notes here..." value={editingItem.content} onChange={(e) => setEditingItem({...editingItem, content: e.target.value})} />
               </div>
             </div>
             <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-between items-center shrink-0 safe-area-bottom">
