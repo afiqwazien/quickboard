@@ -74,6 +74,15 @@ const AuthScreen = ({ onLogin }) => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#0079bf] p-4">
       <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-sm animate-in zoom-in-95 duration-200">
+        {/* Project Icon */}
+        <div className="flex justify-center mb-2">
+          <img 
+            src={quickboardIcon} 
+            alt="Quickboard" 
+            className="w-16 h-16 object-contain"
+          />
+        </div>
+        
         <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">
           {isRegistering ? 'Create Account' : 'Welcome Back'}
         </h2>
