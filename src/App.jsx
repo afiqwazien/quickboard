@@ -1,8 +1,36 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { Plus, X, AlignLeft, Trash2, Search, Calendar, Tag, Cloud, CloudOff, Loader2, LogOut, User, Edit2, Check } from 'lucide-react';
+import { Plus, X, AlignLeft, Trash2, Search, Calendar, Tag, Cloud, CloudOff, Loader2, LogOut, User, Edit2, Check, CheckCircle, Circle } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
-import quickboardIcon from "./assets/quickboard-icon.png";
+import quickboardIcon from "./assets/quickboard-ic.png";
+
+// Add custom scrollbar styles
+const scrollbarStyles = `
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 4px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #9ca3af;
+    border-radius: 4px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #6b7280;
+  }
+  
+  /* Firefox */
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #9ca3af transparent;
+  }
+`;
+
 
 // --- LOGIN COMPONENT ---
 const AuthScreen = ({ onLogin }) => {
@@ -105,6 +133,12 @@ const TAG_COLORS = {
   'General': 'bg-gray-100 text-gray-800 border-gray-200',
 };
 
+const STATUS_STYLES = {
+  'pending': 'bg-yellow-50 border-yellow-200',
+  'in-progress': 'bg-blue-50 border-blue-200',
+  'completed': 'bg-green-50 border-green-200',
+};
+
 const App = () => {
   // Auth State
   const [token, setToken] = useState(localStorage.getItem('token') || null);
@@ -130,7 +164,18 @@ const App = () => {
   const listTitleInputRef = useRef(null);
 
   // Mount check
-  useEffect(() => { setIsMounted(true); }, []);
+  useEffect(() => { 
+    setIsMounted(true);
+    
+    // Inject scrollbar styles
+    const styleSheet = document.createElement("style");
+    styleSheet.textContent = scrollbarStyles;
+    document.head.appendChild(styleSheet);
+    
+    return () => {
+      document.head.removeChild(styleSheet);
+    };
+  }, []);
 
   // Login Handler
   const handleLogin = (newToken, newUsername) => {
@@ -290,7 +335,14 @@ const App = () => {
 
   const handleAddCard = (columnId) => {
     if (!newCardTitle.trim()) { setAddingCardToCol(null); return; }
-    const newItem = { id: uuidv4(), title: newCardTitle, content: '', tag: 'General', createdAt: new Date().toLocaleDateString() };
+    const newItem = { 
+      id: uuidv4(), 
+      title: newCardTitle, 
+      content: '', 
+      tag: 'General', 
+      status: 'pending',
+      createdAt: new Date().toLocaleDateString() 
+    };
     setBoardData(prev => ({ ...prev, columns: { ...prev.columns, [columnId]: { ...prev.columns[columnId], items: [...prev.columns[columnId].items, newItem] } } }));
     setNewCardTitle("");
     if(cardInputRef.current) cardInputRef.current.focus();
@@ -321,6 +373,28 @@ const App = () => {
     setEditingItem(null);
   }
 
+  const toggleCardComplete = (e, itemId, currentStatus) => {
+    e.stopPropagation(); // Prevent opening the edit modal
+    
+    Object.entries(boardData.columns).forEach(([colId, col]) => {
+      const itemIndex = col.items.findIndex(i => i.id === itemId);
+      if (itemIndex !== -1) {
+        const updatedItems = [...col.items];
+        updatedItems[itemIndex] = {
+          ...updatedItems[itemIndex],
+          status: currentStatus === 'completed' ? 'pending' : 'completed'
+        };
+        setBoardData(prev => ({
+          ...prev,
+          columns: {
+            ...prev.columns,
+            [colId]: { ...prev.columns[colId], items: updatedItems }
+          }
+        }));
+      }
+    });
+  };
+
   // Loading state (only if we have a token but no data yet)
   if (!boardData) {
     return (
@@ -343,7 +417,7 @@ const App = () => {
               <img
                 src={quickboardIcon}
                 alt="QuickBoard"
-                className="w-6 h-6"
+                className="w-10 h-10"
               />
               <span>QuickBoard</span>
             </h1>
@@ -395,10 +469,10 @@ const App = () => {
                           <div 
                             ref={provided.innerRef}
                             {...provided.draggableProps}
-                            className={`snap-center shrink-0 w-[calc(100vw-2rem)] md:w-80 flex flex-col max-h-full ${snapshot.isDragging ? 'z-50' : ''}`}
+                            className={`snap-center shrink-0 w-[calc(100vw-2rem)] md:w-80 flex flex-col h-fit max-h-[calc(100vh-8rem)] ${snapshot.isDragging ? 'z-50' : ''}`}
                             style={{ ...provided.draggableProps.style }} 
                           >
-                            <div className={`bg-[#f1f2f4] overflow-y-auto rounded-xl shadow-xl border border-white/20 flex flex-col max-h-full ${snapshot.isDragging ? 'shadow-2xl ring-4 ring-indigo-500/30 rotate-2' : ''}`}>
+                            <div className={`bg-[#f1f2f4] overflow-y-auto rounded-xl shadow-xl border border-white/20 flex flex-col h-full ${snapshot.isDragging ? 'shadow-2xl ring-4 ring-indigo-500/30 rotate-2' : ''}`}>
                               <div {...provided.dragHandleProps} className="p-3 pl-4 pr-2 flex justify-between items-center cursor-grab active:cursor-grabbing border-b border-gray-200/50 group shrink-0">
                                 <div className="flex items-center gap-2 flex-1 min-w-0">
                                   {editingListId === column.id ? (
@@ -440,33 +514,56 @@ const App = () => {
                                   <div 
                                     {...provided.droppableProps} 
                                     ref={provided.innerRef} 
-                                    className={`flex-1 overflow-y-auto px-2 py-2 min-h-25 transition-colors scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-transparent hover:scrollbar-thumb-gray-500 ${snapshot.isDraggingOver ? 'bg-indigo-50/50' : ''}`}
-                                    style={{
-                                      scrollbarWidth: 'thin',
-                                      scrollbarColor: 'rgb(156 163 175) transparent'
-                                    }}
+                                    className={`custom-scrollbar flex-1 overflow-y-auto px-2 py-2 min-h-25 transition-colors ${snapshot.isDraggingOver ? 'bg-indigo-50/50' : ''}`}
                                   >
-                                    {filteredItems.map((item, index) => (
+                                    {filteredItems.map((item, index) => {
+                                      const itemStatus = item.status || 'pending'; // Default to pending if not set
+                                      return (
                                       <Draggable key={item.id} draggableId={item.id} index={index} isDragDisabled={!!searchQuery}>
                                         {(provided, snapshot) => (
                                           <div
                                             ref={provided.innerRef}
                                             {...provided.draggableProps}
                                             {...provided.dragHandleProps}
-                                            onClick={() => setEditingItem(item)}
-                                            className={`bg-white p-3 mb-2.5 rounded-lg border border-gray-200 cursor-pointer hover:border-indigo-400 active:scale-[0.98] transition-colors duration-200 relative group shadow-sm hover:shadow-md ${snapshot.isDragging ? 'rotate-2 shadow-2xl ring-2 ring-indigo-500 z-50' : ''}`}
+                                            onClick={() => setEditingItem({...item, status: itemStatus})}
+                                            className={`bg-white p-3 mb-2.5 rounded-lg border-2 cursor-pointer hover:border-indigo-400 active:scale-[0.98] transition-all duration-200 relative group shadow-sm hover:shadow-md ${
+                                              itemStatus === 'completed' 
+                                                ? 'bg-green-50/50 border-green-300' 
+                                                : itemStatus === 'in-progress'
+                                                ? 'bg-blue-50/50 border-blue-300'
+                                                : 'border-gray-200'
+                                            } ${snapshot.isDragging ? 'rotate-2 shadow-2xl ring-2 ring-indigo-500 z-50' : ''}`}
                                             style={{ ...provided.draggableProps.style }}
                                           >
-                                            <div className="flex justify-between items-start mb-2">
+                                            {/* Complete Button - Top Right */}
+                                            <button
+                                              onClick={(e) => toggleCardComplete(e, item.id, itemStatus)}
+                                              className={`absolute top-2 right-2 p-1 rounded-full transition-all hover:scale-110 ${
+                                                itemStatus === 'completed' 
+                                                  ? 'text-green-600 hover:bg-green-100' 
+                                                  : 'text-gray-300 hover:text-green-500 hover:bg-green-50'
+                                              }`}
+                                              title={itemStatus === 'completed' ? 'Mark as incomplete' : 'Mark as complete'}
+                                            >
+                                              {itemStatus === 'completed' ? (
+                                                <CheckCircle className="w-5 h-5 fill-current" />
+                                              ) : (
+                                                <Circle className="w-5 h-5" />
+                                              )}
+                                            </button>
+
+                                            <div className="flex justify-between items-start mb-2 pr-6">
                                               <div className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded font-bold border ${TAG_COLORS[item.tag]}`}>{item.tag}</div>
                                               <div className="text-[10px] text-gray-400 flex items-center gap-1"><Calendar className="w-3 h-3"/>{item.createdAt.split('/').slice(0,2).join('/')}</div>
                                             </div>
-                                            <p className="text-gray-800 text-sm font-medium leading-snug break-words">{item.title}</p>
+                                            <p className={`text-gray-800 text-sm font-medium leading-snug wrap-break-word ${
+                                              itemStatus === 'completed' ? 'line-through text-gray-500' : ''
+                                            }`}>{item.title}</p>
                                             {item.content && (<div className="mt-3 flex items-center gap-1 text-xs text-gray-400"><AlignLeft className="w-3 h-3" /><span className="truncate max-w-[150px]">{item.content}</span></div>)}
                                           </div>
                                         )}
                                       </Draggable>
-                                    ))}
+                                    )})}
                                     {provided.placeholder}
                                   </div>
                                 )}
@@ -529,6 +626,45 @@ const App = () => {
                   ))}
                 </div>
               </div>
+              
+              <div>
+                <label className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">
+                  <CheckCircle className="w-3 h-3" /> Status
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setEditingItem({...editingItem, status: 'pending'})}
+                    className={`flex-1 px-3 py-2 rounded-lg text-xs font-bold transition-all border-2 ${
+                      (editingItem.status || 'pending') === 'pending'
+                        ? 'bg-yellow-50 text-yellow-800 border-yellow-300 ring-2 ring-offset-1 ring-yellow-500'
+                        : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    Pending
+                  </button>
+                  <button
+                    onClick={() => setEditingItem({...editingItem, status: 'in-progress'})}
+                    className={`flex-1 px-3 py-2 rounded-lg text-xs font-bold transition-all border-2 ${
+                      (editingItem.status || 'pending') === 'in-progress'
+                        ? 'bg-blue-50 text-blue-800 border-blue-300 ring-2 ring-offset-1 ring-blue-500'
+                        : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    In Progress
+                  </button>
+                  <button
+                    onClick={() => setEditingItem({...editingItem, status: 'completed'})}
+                    className={`flex-1 px-3 py-2 rounded-lg text-xs font-bold transition-all border-2 ${
+                      (editingItem.status || 'pending') === 'completed'
+                        ? 'bg-green-50 text-green-800 border-green-300 ring-2 ring-offset-1 ring-green-500'
+                        : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    Completed
+                  </button>
+                </div>
+              </div>
+              
               <div className="h-full flex flex-col">
                 <label className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-wider mb-3"><AlignLeft className="w-3 h-3"/> Description</label>
                 <textarea className="w-full flex-1 min-h-50 bg-gray-50 border border-gray-200 rounded-lg p-4 text-base text-gray-700 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none resize-none leading-relaxed" placeholder="Add more detailed notes here..." value={editingItem.content} onChange={(e) => setEditingItem({...editingItem, content: e.target.value})} />
